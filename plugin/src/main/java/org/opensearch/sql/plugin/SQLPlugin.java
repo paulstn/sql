@@ -102,10 +102,12 @@ import org.opensearch.sql.spark.storage.SparkStorageFactory;
 import org.opensearch.sql.spark.transport.TransportCancelAsyncQueryRequestAction;
 import org.opensearch.sql.spark.transport.TransportCreateAsyncQueryRequestAction;
 import org.opensearch.sql.spark.transport.TransportGetAsyncQueryResultAction;
+import org.opensearch.sql.spark.transport.TransportPromQLRequestAction;
 import org.opensearch.sql.spark.transport.config.AsyncExecutorServiceModule;
 import org.opensearch.sql.spark.transport.model.CancelAsyncQueryActionResponse;
 import org.opensearch.sql.spark.transport.model.CreateAsyncQueryActionResponse;
 import org.opensearch.sql.spark.transport.model.GetAsyncQueryResultActionResponse;
+import org.opensearch.sql.spark.transport.model.PromQLActionResponse;
 import org.opensearch.sql.storage.DataSourceFactory;
 import org.opensearch.threadpool.ExecutorBuilder;
 import org.opensearch.threadpool.FixedExecutorBuilder;
@@ -196,7 +198,10 @@ public class SQLPlugin extends Plugin
         new ActionHandler<>(
             new ActionType<>(
                 TransportCancelAsyncQueryRequestAction.NAME, CancelAsyncQueryActionResponse::new),
-            TransportCancelAsyncQueryRequestAction.class));
+            TransportCancelAsyncQueryRequestAction.class),
+        new ActionHandler<>(
+            new ActionType<>(TransportPromQLRequestAction.NAME, PromQLActionResponse::new),
+            TransportPromQLRequestAction.class));
   }
 
   @Override

@@ -38,22 +38,28 @@ import org.opensearch.sql.opensearch.util.RestRequestUtil;
 import org.opensearch.sql.spark.asyncquery.exceptions.AsyncQueryNotFoundException;
 import org.opensearch.sql.spark.leasemanager.ConcurrencyLimitExceededException;
 import org.opensearch.sql.spark.rest.model.CreateAsyncQueryRequest;
+import org.opensearch.sql.spark.rest.model.PromQLQueryRequest;
 import org.opensearch.sql.spark.transport.TransportCancelAsyncQueryRequestAction;
 import org.opensearch.sql.spark.transport.TransportCreateAsyncQueryRequestAction;
 import org.opensearch.sql.spark.transport.TransportGetAsyncQueryResultAction;
+import org.opensearch.sql.spark.transport.TransportPromQLRequestAction;
 import org.opensearch.sql.spark.transport.format.CreateAsyncQueryRequestConverter;
+import org.opensearch.sql.spark.transport.format.PromQLQueryRequestConverter;
 import org.opensearch.sql.spark.transport.model.CancelAsyncQueryActionRequest;
 import org.opensearch.sql.spark.transport.model.CancelAsyncQueryActionResponse;
 import org.opensearch.sql.spark.transport.model.CreateAsyncQueryActionRequest;
 import org.opensearch.sql.spark.transport.model.CreateAsyncQueryActionResponse;
 import org.opensearch.sql.spark.transport.model.GetAsyncQueryResultActionRequest;
 import org.opensearch.sql.spark.transport.model.GetAsyncQueryResultActionResponse;
+import org.opensearch.sql.spark.transport.model.PromQLActionRequest;
+import org.opensearch.sql.spark.transport.model.PromQLActionResponse;
 
 @RequiredArgsConstructor
 public class RestAsyncQueryManagementAction extends BaseRestHandler {
 
   public static final String ASYNC_QUERY_ACTIONS = "async_query_actions";
   public static final String BASE_ASYNC_QUERY_ACTION_URL = "/_plugins/_async_query";
+  public static final String PROMQL_ACTION_URL = "/_plugins/_promql";
 
   private static final Logger LOG = LogManager.getLogger(RestAsyncQueryManagementAction.class);
 
@@ -101,7 +107,13 @@ public class RestAsyncQueryManagementAction extends BaseRestHandler {
          * Ref [org.opensearch.sql.spark.transport.model.CancelAsyncQueryActionResponse]
          */
         new Route(
-            DELETE, String.format(Locale.ROOT, "%s/{%s}", BASE_ASYNC_QUERY_ACTION_URL, "queryId")));
+            DELETE, String.format(Locale.ROOT, "%s/{%s}", BASE_ASYNC_QUERY_ACTION_URL, "queryId")),
+
+        /*
+         *
+         * PROMETHEUS Query API
+         */
+        new Route(POST, PROMQL_ACTION_URL));
   }
 
   @Override
@@ -109,6 +121,9 @@ public class RestAsyncQueryManagementAction extends BaseRestHandler {
       throws IOException {
     if (!dataSourcesEnabled()) {
       return dataSourcesDisabledError(restRequest);
+    }
+    if (restRequest.path().startsWith(PROMQL_ACTION_URL)) {
+      return executePromQLRequest(restRequest, nodeClient);
     }
     switch (restRequest.method()) {
       case POST:
@@ -123,6 +138,39 @@ public class RestAsyncQueryManagementAction extends BaseRestHandler {
                 new BytesRestResponse(
                     RestStatus.METHOD_NOT_ALLOWED, String.valueOf(restRequest.method())));
     }
+  }
+
+  private RestChannelConsumer executePromQLRequest(RestRequest restRequest, NodeClient nodeClient) {
+    return restChannel -> {
+      try {
+        MetricUtils.incrementNumericalMetric(MetricName.ASYNC_QUERY_CREATE_API_REQUEST_COUNT);
+        PromQLQueryRequest submitJobRequest =
+            PromQLQueryRequestConverter.fromXContentParser(restRequest.contentParser());
+        Scheduler.schedule(
+            nodeClient,
+            () ->
+                nodeClient.execute(
+                    TransportPromQLRequestAction.ACTION_TYPE,
+                    new PromQLActionRequest(submitJobRequest),
+                    new ActionListener<>() {
+                      @Override
+                      public void onResponse(PromQLActionResponse promQLActionResponse) {
+                        restChannel.sendResponse(
+                            new BytesRestResponse(
+                                RestStatus.CREATED,
+                                "application/json; charset=UTF-8",
+                                promQLActionResponse.getResult()));
+                      }
+
+                      @Override
+                      public void onFailure(Exception e) {
+                        handleException(e, restChannel, restRequest.method());
+                      }
+                    }));
+      } catch (Exception e) {
+        handleException(e, restChannel, restRequest.method());
+      }
+    };
   }
 
   private RestChannelConsumer executePostRequest(RestRequest restRequest, NodeClient nodeClient) {

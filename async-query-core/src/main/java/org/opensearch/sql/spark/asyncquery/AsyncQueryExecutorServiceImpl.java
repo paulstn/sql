@@ -28,6 +28,9 @@ import org.opensearch.sql.spark.dispatcher.model.DispatchQueryResponse;
 import org.opensearch.sql.spark.functions.response.DefaultSparkSqlFunctionResponseHandle;
 import org.opensearch.sql.spark.rest.model.CreateAsyncQueryRequest;
 import org.opensearch.sql.spark.rest.model.CreateAsyncQueryResponse;
+import org.opensearch.sql.spark.rest.model.LangType;
+import org.opensearch.sql.spark.rest.model.PromQLQueryRequest;
+import org.opensearch.sql.spark.rest.model.PromQLQueryResponse;
 
 /** AsyncQueryExecutorService implementation of {@link AsyncQueryExecutorService}. */
 @AllArgsConstructor
@@ -124,5 +127,46 @@ public class AsyncQueryExecutorServiceImpl implements AsyncQueryExecutorService 
       return result;
     }
     throw new AsyncQueryNotFoundException(String.format("QueryId: %s not found", queryId));
+  }
+
+  @Override
+  public PromQLQueryResponse promQLQuery(
+      PromQLQueryRequest promQLQueryRequest, AsyncQueryRequestContext asyncQueryRequestContext) {
+
+    DispatchQueryResponse dispatchQueryResponse =
+        sparkQueryDispatcher.dispatch(
+            DispatchQueryRequest.builder()
+                .accountId(null)
+                .applicationId(null)
+                .query(promQLQueryRequest.getQuery())
+                .datasource(promQLQueryRequest.getDatasource())
+                .starttime(promQLQueryRequest.getStarttime())
+                .endtime(promQLQueryRequest.getEndtime())
+                .step(promQLQueryRequest.getStep())
+                .langType(LangType.PROMQL)
+                .executionRoleARN(null)
+                .clusterName(null)
+                .sparkSubmitParameterModifier(null)
+                .sessionId(null)
+                .build(),
+            asyncQueryRequestContext);
+    asyncQueryJobMetadataStorageService.storeJobMetadata(
+        AsyncQueryJobMetadata.builder()
+            .queryId(dispatchQueryResponse.getQueryId())
+            .accountId(null)
+            .applicationId(null)
+            .jobId(dispatchQueryResponse.getJobId())
+            .resultIndex(dispatchQueryResponse.getResultIndex())
+            .sessionId(dispatchQueryResponse.getSessionId())
+            .datasourceName(dispatchQueryResponse.getDatasourceName())
+            .jobType(dispatchQueryResponse.getJobType())
+            .indexName(dispatchQueryResponse.getIndexName())
+            .query(promQLQueryRequest.getQuery())
+            .langType(LangType.PROMQL)
+            .state(dispatchQueryResponse.getStatus())
+            .error(dispatchQueryResponse.getError())
+            .build(),
+        asyncQueryRequestContext);
+    return new PromQLQueryResponse(dispatchQueryResponse.getPromQLJsonRes());
   }
 }

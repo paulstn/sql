@@ -45,7 +45,6 @@ public class PrometheusClientImpl implements PrometheusClient {
             end,
             step);
     logger.debug("queryUrl: " + queryUrl);
-    System.out.println("queryUrl: " + queryUrl);
     Request request = new Request.Builder().url(queryUrl).build();
     Response response = this.okHttpClient.newCall(request).execute();
     JSONObject jsonObject = readResponse(response);

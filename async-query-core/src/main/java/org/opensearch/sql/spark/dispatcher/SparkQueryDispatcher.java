@@ -65,10 +65,6 @@ public class SparkQueryDispatcher {
         this.dataSourceService.verifyDataSourceAccessAndGetRawMetadata(
             dispatchQueryRequest.getDatasource(), asyncQueryRequestContext);
 
-    System.out.println("data source name: " + dataSourceMetadata.getName());
-    System.out.println(
-        "prom uri: "
-            + dataSourceMetadata.getProperties().getOrDefault("prometheus.uri", "no prom uri"));
     if (LangType.PROMQL.equals(dispatchQueryRequest.getLangType())
         && dataSourceMetadata.getConnector() == DataSourceType.PROMETHEUS) {
 
@@ -91,31 +87,24 @@ public class SparkQueryDispatcher {
                       }
                     });
 
-        // new PrometheusClientImpl(
-        //     getHttpClient(),
-        //     new URI(
-        //         dataSourceMetadata
-        //             .getProperties()
-        //             .getOrDefault("prometheus.uri", "no prom uri")));
-
-        System.out.println("created prom client impl");
         JSONObject res =
             AccessController.doPrivileged(
                 (PrivilegedExceptionAction<JSONObject>)
                     () -> {
                       try {
                         return prometheus.queryRange(
-                            dispatchQueryRequest.getQuery(), 1737964800L, 1738137600L, "1h");
+                            dispatchQueryRequest.getQuery(),
+                            dispatchQueryRequest.getStarttime(),
+                            dispatchQueryRequest.getEndtime(),
+                            dispatchQueryRequest.getStep());
                       } catch (IOException e) {
                         e.printStackTrace();
                         return new JSONObject();
                       }
                     });
 
-        // System.out.println("res: " + res);
-
         return DispatchQueryResponse.builder()
-            .queryId(res.toString())
+            .promQLJsonRes(res)
             .jobId("yourJobId")
             .resultIndex("yourResultIndex")
             .sessionId("yourSessionId")
@@ -138,47 +127,6 @@ public class SparkQueryDispatcher {
             .status(QueryState.FAILED)
             .build();
       }
-
-      // DataSource prometheus = this.dataSourceService.getDataSource(dataSourceMetadata.getName());
-
-      // String prometheusUri =
-      //     dataSourceMetadata.getProperties().getOrDefault("prometheus.uri", "no prom uri");
-      // // make a call to prometheus
-
-      // Collection<FunctionResolver> functionList = (prometheus.getStorageEngine()).getFunctions();
-      // Optional<FunctionResolver> queryRangeResolver =
-      //     functionList.stream()
-      //         .filter(function -> function.getFunctionName().toString().equals("query_range"))
-      //         .findFirst();
-
-      // if (queryRangeResolver.isPresent()) {
-      //   Pair<FunctionSignature, FunctionBuilder> queryRangeResolved =
-      //       queryRangeResolver.get().resolve(null);
-      //   List<Expression> arguments = new ArrayList<Expression>();
-      //   arguments.add(
-      //       new NamedArgumentExpression(
-      //           "query",
-      //           new LiteralExpression(
-      //               new ExprStringValue("prometheus_tsdb_head_series{job=\"prometheus\"}"))));
-      //   arguments.add(
-      //       new NamedArgumentExpression(
-      //           "starttime", new LiteralExpression(new ExprLongValue(1737964800))));
-      //   arguments.add(
-      //       new NamedArgumentExpression(
-      //           "endtime", new LiteralExpression(new ExprLongValue(1738137600))));
-      //   arguments.add(
-      //       new NamedArgumentExpression("step", new LiteralExpression(new
-      // ExprStringValue("1h"))));
-
-      //   Table something =
-      //       ((TableFunctionImplementation)
-      //               queryRangeResolved.getRight().apply((FunctionProperties) null, arguments))
-      //           .applyArguments();
-
-      //   System.out.println("table: " + something);
-      // } else {
-      //   System.out.println("query_range function is not present");
-      // }
     }
 
     String query = dispatchQueryRequest.getQuery();

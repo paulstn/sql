@@ -9,6 +9,8 @@ import org.opensearch.sql.spark.asyncquery.model.AsyncQueryExecutionResponse;
 import org.opensearch.sql.spark.asyncquery.model.AsyncQueryRequestContext;
 import org.opensearch.sql.spark.rest.model.CreateAsyncQueryRequest;
 import org.opensearch.sql.spark.rest.model.CreateAsyncQueryResponse;
+import org.opensearch.sql.spark.rest.model.PromQLQueryRequest;
+import org.opensearch.sql.spark.rest.model.PromQLQueryResponse;
 
 /**
  * AsyncQueryExecutorService exposes functionality to create, get results and cancel an async query.
@@ -41,4 +43,13 @@ public interface AsyncQueryExecutorService {
    * @return {@link String} cancelledQueryId.
    */
   String cancelQuery(String queryId, AsyncQueryRequestContext asyncQueryRequestContext);
+
+  /**
+   * Prometheus Query Language (PromQL) query.
+   *
+   * @param promQLQueryRequest
+   * @return {@link PromQLQueryResponse}
+   */
+  PromQLQueryResponse promQLQuery(
+      PromQLQueryRequest promQLQueryRequest, AsyncQueryRequestContext asyncQueryRequestContext);
 }

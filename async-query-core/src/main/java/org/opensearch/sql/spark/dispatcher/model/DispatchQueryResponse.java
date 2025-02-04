@@ -2,6 +2,7 @@ package org.opensearch.sql.spark.dispatcher.model;
 
 import lombok.Builder;
 import lombok.Getter;
+import org.json.JSONObject;
 import org.opensearch.sql.spark.asyncquery.model.QueryState;
 
 @Getter
@@ -16,4 +17,6 @@ public class DispatchQueryResponse {
   private final String indexName;
   private final QueryState status;
   private final String error;
+
+  private final JSONObject promQLJsonRes;
 }

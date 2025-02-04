@@ -28,4 +28,9 @@ public class DispatchQueryRequest {
 
   /** Optional sessionId. */
   private String sessionId;
+
+  // PromQL optionals
+  private final Long starttime;
+  private final Long endtime;
+  private final String step;
 }
