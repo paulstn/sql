@@ -7,7 +7,6 @@ package org.opensearch.sql.spark.dispatcher;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -15,8 +14,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import okhttp3.OkHttpClient;
 import org.json.JSONObject;
 import org.opensearch.sql.common.interceptors.URIValidatorInterceptor;
@@ -41,7 +40,7 @@ import org.opensearch.sql.spark.validator.PPLQueryValidator;
 import org.opensearch.sql.spark.validator.SQLQueryValidator;
 
 /** This class takes care of understanding query and dispatching job query to emr serverless. */
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class SparkQueryDispatcher {
 
   public static final String INDEX_TAG_KEY = "index";
@@ -56,7 +55,7 @@ public class SparkQueryDispatcher {
   private final SQLQueryValidator sqlQueryValidator;
   private final PPLQueryValidator pplQueryValidator;
 
-  // private final PrometheusClient prometheusClient;
+  private PrometheusClient prometheusClient;
 
   public DispatchQueryResponse dispatch(
       DispatchQueryRequest dispatchQueryRequest,
@@ -69,61 +68,43 @@ public class SparkQueryDispatcher {
         && dataSourceMetadata.getConnector() == DataSourceType.PROMETHEUS) {
 
       try {
-        PrometheusClient prometheus =
-            AccessController.doPrivileged(
-                (PrivilegedExceptionAction<PrometheusClientImpl>)
-                    () -> {
-                      try {
-                        return new PrometheusClientImpl(
-                            getHttpClient(),
-                            new URI(
-                                dataSourceMetadata
-                                    .getProperties()
-                                    .getOrDefault("prometheus.uri", "no prom uri")));
-                      } catch (URISyntaxException e) {
-                        throw new IllegalArgumentException(
-                            String.format(
-                                "Invalid URI in prometheus properties: %s", e.getMessage()));
-                      }
-                    });
-
         JSONObject res =
             AccessController.doPrivileged(
                 (PrivilegedExceptionAction<JSONObject>)
                     () -> {
                       try {
-                        return prometheus.queryRange(
+                        if (prometheusClient == null) {
+                          prometheusClient =
+                              new PrometheusClientImpl(
+                                  getHttpClient(),
+                                  new URI(
+                                      dataSourceMetadata
+                                          .getProperties()
+                                          .getOrDefault("prometheus.uri", "no prom uri")));
+                        }
+
+                        return prometheusClient.queryRange(
                             dispatchQueryRequest.getQuery(),
                             dispatchQueryRequest.getStarttime(),
                             dispatchQueryRequest.getEndtime(),
                             dispatchQueryRequest.getStep());
                       } catch (IOException e) {
                         e.printStackTrace();
-                        return new JSONObject();
+                        return null;
                       }
                     });
 
         return DispatchQueryResponse.builder()
             .promQLJsonRes(res)
-            .jobId("yourJobId")
-            .resultIndex("yourResultIndex")
-            .sessionId("yourSessionId")
-            .datasourceName("yourDatasourceName")
+            .datasourceName(dispatchQueryRequest.getDatasource())
             .jobType(JobType.INTERACTIVE)
-            .indexName("yourIndexName")
             .status(QueryState.SUCCESS)
             .build();
 
       } catch (PrivilegedActionException e) {
         e.printStackTrace();
         return DispatchQueryResponse.builder()
-            .queryId("yourQueryId")
-            .jobId("yourJobId")
-            .resultIndex("yourResultIndex")
-            .sessionId("yourSessionId")
-            .datasourceName("yourDatasourceName")
-            .jobType(JobType.INTERACTIVE)
-            .indexName("yourIndexName")
+            .promQLJsonRes(null)
             .status(QueryState.FAILED)
             .build();
       }

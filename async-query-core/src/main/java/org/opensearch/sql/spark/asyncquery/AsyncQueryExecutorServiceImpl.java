@@ -150,23 +150,23 @@ public class AsyncQueryExecutorServiceImpl implements AsyncQueryExecutorService 
                 .sessionId(null)
                 .build(),
             asyncQueryRequestContext);
-    asyncQueryJobMetadataStorageService.storeJobMetadata(
-        AsyncQueryJobMetadata.builder()
-            .queryId(dispatchQueryResponse.getQueryId())
-            .accountId(null)
-            .applicationId(null)
-            .jobId(dispatchQueryResponse.getJobId())
-            .resultIndex(dispatchQueryResponse.getResultIndex())
-            .sessionId(dispatchQueryResponse.getSessionId())
-            .datasourceName(dispatchQueryResponse.getDatasourceName())
-            .jobType(dispatchQueryResponse.getJobType())
-            .indexName(dispatchQueryResponse.getIndexName())
-            .query(promQLQueryRequest.getQuery())
-            .langType(LangType.PROMQL)
-            .state(dispatchQueryResponse.getStatus())
-            .error(dispatchQueryResponse.getError())
-            .build(),
-        asyncQueryRequestContext);
+    // asyncQueryJobMetadataStorageService.storeJobMetadata(
+    //     AsyncQueryJobMetadata.builder()
+    //         .queryId(dispatchQueryResponse.getQueryId())
+    //         .accountId(null)
+    //         .applicationId(null)
+    //         .jobId(dispatchQueryResponse.getJobId())
+    //         .resultIndex(dispatchQueryResponse.getResultIndex())
+    //         .sessionId(dispatchQueryResponse.getSessionId())
+    //         .datasourceName(dispatchQueryResponse.getDatasourceName())
+    //         .jobType(dispatchQueryResponse.getJobType())
+    //         .indexName(dispatchQueryResponse.getIndexName())
+    //         .query(promQLQueryRequest.getQuery())
+    //         .langType(LangType.PROMQL)
+    //         .state(dispatchQueryResponse.getStatus())
+    //         .error(dispatchQueryResponse.getError())
+    //         .build(),
+    //     asyncQueryRequestContext);
     return new PromQLQueryResponse(dispatchQueryResponse.getPromQLJsonRes());
   }
 }
